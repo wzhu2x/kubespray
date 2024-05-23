@@ -39,8 +39,8 @@ function create_container_image_tar() {
 	mkdir  ${IMAGE_DIR}
 	cd     ${IMAGE_DIR}
 
-	sudo ${runtime} pull registry:latest
-	sudo ${runtime} save -o registry-latest.tar registry:latest
+	sudo ${runtime} pull docker.io/library/registry:2
+	sudo ${runtime} save -o registry-latest.tar docker.io/library/registry:2
 
 	while read -r image
 	do
@@ -96,7 +96,7 @@ function register_container_images() {
 	if [ -z "${DESTINATION_REGISTRY}" ]; then
 		echo "DESTINATION_REGISTRY not set, will create local registry"
 		create_registry=true
-		DESTINATION_REGISTRY="$(hostname):${REGISTRY_PORT}"
+		DESTINATION_REGISTRY="myprivateregisry.com:${REGISTRY_PORT}"
 	fi
 	echo "Images will be pushed to ${DESTINATION_REGISTRY}"
 
@@ -108,23 +108,7 @@ function register_container_images() {
 		mkdir ${TEMP_DIR}
 	fi
 
-	# To avoid "http: server gave http response to https client" error.
-	if [ -d /etc/docker/ ]; then
-		set -e
-		# Ubuntu18.04, RHEL7/CentOS7
-		cp ${CURRENT_DIR}/docker-daemon.json      ${TEMP_DIR}/docker-daemon.json
-		sed -i s@"HOSTNAME"@"$(hostname)"@  ${TEMP_DIR}/docker-daemon.json
-		sudo cp ${TEMP_DIR}/docker-daemon.json           /etc/docker/daemon.json
-	elif [ -d /etc/containers/ ]; then
-		set -e
-		# RHEL8/CentOS8
-		cp ${CURRENT_DIR}/registries.conf         ${TEMP_DIR}/registries.conf
-		sed -i s@"HOSTNAME"@"$(hostname)"@  ${TEMP_DIR}/registries.conf
-		sudo cp ${TEMP_DIR}/registries.conf   /etc/containers/registries.conf
-	else
-		echo "runtime package(docker-ce, podman, nerctl, etc.) should be installed"
-		exit 1
-	fi
+
 
 	tar -zxvf ${IMAGE_TAR_FILE}
 
@@ -144,22 +128,23 @@ function register_container_images() {
 		# Apply certificates
 			mkdir -p /etc/docker/certs.d/myprivateregisry.com:5000
 			mkdir -p /etc/containers/certs.d/myprivateregisry.com:5000
+			
 			cp /tmp/certs/domain.crt /etc/docker/certs.d/myprivateregisry.com:5000
 			cp /tmp/certs/domain.crt /etc/containers/certs.d/myprivateregisry.com:5000
-			cp /tmp/certs/domain.crt /etc/pki/ca-trust/source/anchors/
-			update-ca-trust extract
+			cp /tmp/certs/domain.crt /usr/local/share/ca-certificates
+			update-ca-certificates
 
 		# get ip 
 		    IP_LIST=($(hostname -I))
 			IP_ADDRESS="${IP_LIST[0]}"
-			sed -i '/${IP_ADDRESS} pws-registry.intel.lab/d' /etc/hosts
-			echo "${IP_ADDRESS} pws-registry.intel.lab" >> /etc/hosts
+			sed -i '/${IP_ADDRESS} myprivateregisry.com/d' /etc/hosts
+			echo "${IP_ADDRESS} myprivateregisry.com" >> /etc/hosts
         # Run local registry image
-			sudo ${runtime} run --restart=always -d -p "${REGISTRY_PORT}":"${REGISTRY_PORT}" --name registry registry:latest \
+			sudo ${runtime} run --restart=always -d -p "${REGISTRY_PORT}":"${REGISTRY_PORT}" --name registry  \
 			-v  /tmp/certs:/certs \
-			-e REGISTRY_HTTP_ADDR=${IP_ADDRESS}:5000 \
 			-e REGISTRY_HTTP_TLS_CERTIFICATE=certs/domain.crt \
 			-e REGISTRY_HTTP_TLS_KEY=certs/domain.key \
+			docker.io/library/registry:2
 		fi
 		set -e
 	fi
