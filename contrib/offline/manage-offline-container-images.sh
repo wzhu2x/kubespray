@@ -7,7 +7,10 @@ TEMP_DIR="${CURRENT_DIR}/temp"
 IMAGE_TAR_FILE="${CURRENT_DIR}/container-images.tar.gz"
 IMAGE_DIR="${CURRENT_DIR}/container-images"
 IMAGE_LIST="${IMAGE_DIR}/container-images.txt"
+IMAGES_FROM_FILE="${CURRENT_DIR}/temp/images.list"
 RETRY_COUNT=5
+
+
 
 function create_container_image_tar() {
 	set -e
@@ -131,7 +134,32 @@ function register_container_images() {
 
 		sudo ${runtime} container inspect registry >/dev/null 2>&1
 		if [ $? -ne 0 ]; then
-			sudo ${runtime} run --restart=always -d -p "${REGISTRY_PORT}":"${REGISTRY_PORT}" --name registry registry:latest
+		# Create certificate for the local registry
+		    mkdir -p /tmp/certs
+			openssl req -newkey rsa:4096 -nodes -sha256 -keyout /tmp/certs/domain.key \
+                -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=myprivateregisry.com" \
+                -addext "subjectAltName=DNS:myprivateregisry.com,DNS:quay.io" \
+                -x509 -days 36500 -out /tmp/certs/domain.crt
+
+		# Apply certificates
+			mkdir -p /etc/docker/certs.d/myprivateregisry.com:5000
+			mkdir -p /etc/containers/certs.d/myprivateregisry.com:5000
+			cp /tmp/certs/domain.crt /etc/docker/certs.d/myprivateregisry.com:5000
+			cp /tmp/certs/domain.crt /etc/containers/certs.d/myprivateregisry.com:5000
+			cp /tmp/certs/domain.crt /etc/pki/ca-trust/source/anchors/
+			update-ca-trust extract
+
+		# get ip 
+		    IP_LIST=($(hostname -I))
+			IP_ADDRESS="${IP_LIST[0]}"
+			sed -i '/${IP_ADDRESS} pws-registry.intel.lab/d' /etc/hosts
+			echo "${IP_ADDRESS} pws-registry.intel.lab" >> /etc/hosts
+        # Run local registry image
+			sudo ${runtime} run --restart=always -d -p "${REGISTRY_PORT}":"${REGISTRY_PORT}" --name registry registry:latest \
+			-v  /tmp/certs:/certs \
+			-e REGISTRY_HTTP_ADDR=${IP_ADDRESS}:5000 \
+			-e REGISTRY_HTTP_TLS_CERTIFICATE=certs/domain.crt \
+			-e REGISTRY_HTTP_TLS_KEY=certs/domain.key \
 		fi
 		set -e
 	fi
@@ -146,7 +174,7 @@ function register_container_images() {
 		if [ "${org_image}" == "ID:" ]; then
 		  org_image=$(echo "${load_image}"  | awk '{print $4}')
 		fi
-		image_id=$(sudo ${runtime} image inspect ${org_image} | grep "\"Id\":" | awk -F: '{print $3}'| sed s/'\",'//)
+		image_id=$(sudo ${runtime} image inspect ${org_image} | grep "\"Id\":" | awk -F '"' '{print $4}')
 		if [ -z "${file_name}" ]; then
 			echo "Failed to get file_name for line ${line}"
 			exit 1
