@@ -1,7 +1,7 @@
 ---
 ## Global Offline settings
 ### Private Container Image Registry
-registry_host: "myprivateregisry.com"
+registry_host: "myprivateregisry.com:5000"
 #files_repo: "http://192.168.122.14:8080"
 files_repo: "<http://ip:8080>"
 ### If using CentOS, RedHat, AlmaLinux or Fedora
