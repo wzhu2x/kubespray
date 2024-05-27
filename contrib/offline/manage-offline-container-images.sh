@@ -119,32 +119,28 @@ function register_container_images() {
 		sudo ${runtime} container inspect registry >/dev/null 2>&1
 		if [ $? -ne 0 ]; then
 		# Create certificate for the local registry
-		    mkdir -p /tmp/certs
-			openssl req -newkey rsa:4096 -nodes -sha256 -keyout /tmp/certs/domain.key \
+		    mkdir -p /home/kubespray/inventory/my_airgap_cluster/certs
+			openssl req -newkey rsa:4096 -nodes -sha256 -keyout /home/kubespray/inventory/my_airgap_cluster/certs/domain.key \
                 -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=myprivateregisry.com" \
                 -addext "subjectAltName=DNS:myprivateregisry.com,DNS:quay.io" \
-                -x509 -days 36500 -out /tmp/certs/domain.crt
+                -x509 -days 36500 -out /home/kubespray/inventory/my_airgap_cluster/certs/domain.crt
 
 		# Apply certificates
-			mkdir -p /etc/docker/certs.d/myprivateregisry.com:5000
-			mkdir -p /etc/containers/certs.d/myprivateregisry.com:5000
-			
-			cp /tmp/certs/domain.crt /etc/docker/certs.d/myprivateregisry.com:5000
-			cp /tmp/certs/domain.crt /etc/containers/certs.d/myprivateregisry.com:5000
-			cp /tmp/certs/domain.crt /usr/local/share/ca-certificates
+			cp /home/kubespray/inventory/my_airgap_cluster/certs/domain.crt /usr/local/share/ca-certificates
 			update-ca-certificates
 
 		# get ip 
 		    IP_LIST=($(hostname -I))
 			IP_ADDRESS="${IP_LIST[0]}"
-			sed -i '/${IP_ADDRESS} myprivateregisry.com/d' /etc/hosts
+			sed -i "/${IP_ADDRESS} myprivateregisry.com/d" /etc/hosts
 			echo "${IP_ADDRESS} myprivateregisry.com" >> /etc/hosts
         # Run local registry image
+		    sudo ${runtime} rm registry --force
 			sudo ${runtime} run --restart=always -d -p "${REGISTRY_PORT}":"${REGISTRY_PORT}" --name registry  \
-			-v  /tmp/certs:/certs \
+			-v  /home/kubespray/inventory/my_airgap_cluster/certs:/certs \
 			-e REGISTRY_HTTP_TLS_CERTIFICATE=certs/domain.crt \
 			-e REGISTRY_HTTP_TLS_KEY=certs/domain.key \
-			docker.io/library/registry:2
+			docker.io/library/registry:latest
 		fi
 		set -e
 	fi

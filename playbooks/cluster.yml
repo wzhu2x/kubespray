@@ -1,4 +1,16 @@
 ---
+- name: Copy file and run shell script on remote host
+  hosts: all
+  tasks:
+    - name: Copy a file to remote host
+      copy:
+        src: /kubespray/inventory/my_airgap_cluster/certs/domain.crt
+        dest: /usr/local/share/ca-certificates/domain.crt
+
+    - name: Execute a shell script on remote host
+      become: yes
+      shell: update-ca-certificates
+
 - name: Common tasks for every playbooks
   import_playbook: boilerplate.yml
 
@@ -92,3 +104,4 @@
   roles:
     - { role: kubespray-defaults }
     - { role: kubernetes/preinstall, when: "dns_mode != 'none' and resolvconf_mode == 'host_resolvconf'", tags: resolvconf, dns_late: true }
+
