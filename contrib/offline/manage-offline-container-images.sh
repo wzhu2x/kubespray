@@ -39,8 +39,8 @@ function create_container_image_tar() {
 	mkdir  ${IMAGE_DIR}
 	cd     ${IMAGE_DIR}
 
-	sudo ${runtime} pull docker.io/library/registry:2
-	sudo ${runtime} save -o registry-latest.tar docker.io/library/registry:2
+	sudo ${runtime} pull docker.io/library/registry:latest
+	sudo ${runtime} save -o registry-latest.tar docker.io/library/registry:latest
 
 	while read -r image
 	do
@@ -115,7 +115,7 @@ function register_container_images() {
 	if [ "${create_registry}" ]; then
 		sudo ${runtime} load -i ${IMAGE_DIR}/registry-latest.tar
 		set +e
-
+        sudo ${runtime} rm registry --force
 		sudo ${runtime} container inspect registry >/dev/null 2>&1
 		if [ $? -ne 0 ]; then
 		# Create certificate for the local registry
@@ -135,7 +135,7 @@ function register_container_images() {
 			sed -i "/${IP_ADDRESS} myprivateregisry.com/d" /etc/hosts
 			echo "${IP_ADDRESS} myprivateregisry.com" >> /etc/hosts
         # Run local registry image
-		    sudo ${runtime} rm registry --force
+		    
 			sudo ${runtime} run --restart=always -d -p "${REGISTRY_PORT}":"${REGISTRY_PORT}" --name registry  \
 			-v  /home/kubespray/inventory/my_airgap_cluster/certs:/certs \
 			-e REGISTRY_HTTP_TLS_CERTIFICATE=certs/domain.crt \

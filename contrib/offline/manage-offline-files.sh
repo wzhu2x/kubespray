@@ -57,7 +57,7 @@ run_nginx() {
             --restart=always -d -p ${NGINX_PORT}:80 \
             --volume "${OFFLINE_FILES_DIR}":/usr/share/nginx/html/download \
             --volume "${CURRENT_DIR}/nginx.conf":/etc/nginx/nginx.conf \
-            --name nginx nginx:alpine
+            --name nginx docker.io/library/nginx:1.25.2-alpine
     fi
 }
 
