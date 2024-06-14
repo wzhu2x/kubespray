@@ -126,9 +126,19 @@ function register_container_images() {
                 -x509 -days 36500 -out /home/kubespray/inventory/my_airgap_cluster/certs/domain.crt
 
 		# Apply certificates
-			cp /home/kubespray/inventory/my_airgap_cluster/certs/domain.crt /usr/local/share/ca-certificates
-			update-ca-certificates
 
+               if [ -f /etc/os-release ]; then
+                   . /etc/os-release
+                   OS=$ID
+	       fi
+	       if [ "$OS" == "ubuntu" ]; then
+		cp /home/kubespray/inventory/my_airgap_cluster/certs/domain.crt /usr/local/share/ca-certificates
+		update-ca-certificates
+               elif [ "$OS" == "rhel" ] || [ "$OS" == "centos" ] || [ "$OS" == "fedora" ]; then
+	        \cp /home/kubespray/inventory/my_airgap_cluster/certs/domain.crt /etc/pki/ca-trust/source/anchors/
+                update-ca-trust extract
+	       fi
+	
 		# get ip 
 		    IP_LIST=($(hostname -I))
 			IP_ADDRESS="${IP_LIST[0]}"
